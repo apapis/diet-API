@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from tenacity import retry, stop_after_attempt, wait_fixed
 import os
 from dotenv import load_dotenv
