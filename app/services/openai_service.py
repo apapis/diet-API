@@ -44,7 +44,7 @@ def process_single_pdf_part(part: str, session_id: str, previous_context: Option
 
     try:
         response = openai.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=messages,
         )
 
