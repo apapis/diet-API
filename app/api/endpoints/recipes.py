@@ -1,15 +1,25 @@
-from fastapi import APIRouter, UploadFile, HTTPException
+from fastapi import APIRouter, UploadFile, HTTPException, Depends
+from sqlalchemy.orm import Session
 from pathlib import Path
+from app.db.session import SessionLocal
 from app.services.pdf_splitter import PDFSplitter
 from app.services.pdf_storage import PDFStorage
 from app.services.openai_service import process_pdf_parts_with_gpt
+from app.db.db_utils import save_meals_to_db
 
 router = APIRouter()
 
+def get_db():
+    """Generator sesji bazy danych dla FastAPI"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 @router.post("/process")
-async def process_pdf(
-    file: UploadFile,
-):
+async def process_pdf(file: UploadFile, db: Session = Depends(get_db)):
+    """Przetwarza PDF, wysyła do OpenAI, a następnie zapisuje wyniki w bazie."""
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
 
@@ -28,19 +38,15 @@ async def process_pdf(
     page_ranges = splitter.split(saved_pdf_path)
     split_pdfs = storage.save_split_pdfs(saved_pdf_path, page_ranges)
 
-    # Przetwórz pierwszy podzielony PDF na tekst
-    if not split_pdfs:
-        raise HTTPException(status_code=500, detail="Failed to split PDF into parts.")
+    # Przetwórz pierwszy fragment PDF
+    first_text_path = storage.save_pdf_as_text(split_pdfs[0])
+    extracted_recipes = process_pdf_parts_with_gpt([first_text_path.read_text()])
 
-    first_text_path = storage.save_pdf_as_text(split_pdfs[0])  # Tylko pierwszy fragment
-
-    # Przetwórz tekst na JSON za pomocą OpenAI
-    result = process_pdf_parts_with_gpt([first_text_path.read_text()])  # Tylko pierwszy fragment
+    # Zapisz przepisy do bazy
+    saved_meals = save_meals_to_db(db, extracted_recipes)
 
     return {
         "message": "PDF processed successfully",
         "original_pdf": str(saved_pdf_path),
-        "split_pdfs": [str(f) for f in split_pdfs],
-        "split_text": str(first_text_path),
-        "result": result
+        "processed_meals": [meal.id for meal in saved_meals]  # Zwracamy ID zapisanych posiłków
     }
