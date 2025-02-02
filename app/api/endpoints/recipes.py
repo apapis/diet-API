@@ -19,7 +19,11 @@ def get_db():
 
 @router.post("/process")
 async def process_pdf(file: UploadFile, db: Session = Depends(get_db)):
-    """Przetwarza PDF, wysyła do OpenAI, a następnie zapisuje wyniki w bazie."""
+    """
+    Przetwarza PDF, wysyła do OpenAI, a następnie zapisuje wyniki w bazie.
+    Zapisuje ogólne dane przepisu do tabeli 'meals' oraz domyślną wariację składników
+    do tabeli 'ingredient_variations'.
+    """
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
 
@@ -42,11 +46,11 @@ async def process_pdf(file: UploadFile, db: Session = Depends(get_db)):
     first_text_path = storage.save_pdf_as_text(split_pdfs[0])
     extracted_recipes = process_pdf_parts_with_gpt([first_text_path.read_text()])
 
-    # Zapisz przepisy do bazy
+    # Zapisz przepisy wraz z wariacjami składników do bazy
     saved_meals = save_meals_to_db(db, extracted_recipes)
 
     return {
         "message": "PDF processed successfully",
         "original_pdf": str(saved_pdf_path),
-        "processed_meals": [meal.id for meal in saved_meals]  # Zwracamy ID zapisanych posiłków
+        "processed_meals": [meal.id for meal in saved_meals]  # Zwracamy ID zapisanych przepisów
     }
