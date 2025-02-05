@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from typing import AsyncGenerator
 from contextlib import asynccontextmanager
 from app.api.endpoints import recipes, meals  # Dołączamy moduł meals
@@ -15,6 +16,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     print("Shutting down application...")
 
 app = FastAPI(lifespan=lifespan)
+
+# Dodaj middleware CORS
+origins = [
+    "http://localhost:5173",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Dodajemy endpointy z recipes
 app.include_router(recipes.router, prefix="/recipes", tags=["recipes"])

@@ -1,36 +1,20 @@
-from fastapi import APIRouter, UploadFile, HTTPException, Depends
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, UploadFile, HTTPException
 from pathlib import Path
-from app.db.session import SessionLocal
 from app.services.pdf_splitter import PDFSplitter
 from app.services.pdf_storage import PDFStorage
 from app.services.openai_service import process_pdf_parts_with_gpt
-from app.db.db_utils import save_meals_to_db
 
 router = APIRouter()
 
-def get_db():
-    """Generator sesji bazy danych dla FastAPI"""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 @router.post("/process")
-async def process_pdf(file: UploadFile, db: Session = Depends(get_db)):
-    """
-    Przetwarza PDF, wysyła do OpenAI, a następnie zapisuje wyniki w bazie.
-    Zapisuje ogólne dane przepisu do tabeli 'meals' oraz domyślną wariację składników
-    do tabeli 'ingredient_variations'.
-    """
+async def process_pdf(file: UploadFile):
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
 
     storage_dir = Path("/tmp/pdf_storage")
     storage = PDFStorage(storage_dir)
 
-    # Zapisz oryginalny PDF
+    # Zapisz oryginalny PDF tymczasowo
     temp_pdf_path = Path(f"/tmp/{file.filename}")
     with temp_pdf_path.open("wb") as temp_file:
         temp_file.write(file.file.read())
@@ -46,11 +30,8 @@ async def process_pdf(file: UploadFile, db: Session = Depends(get_db)):
     first_text_path = storage.save_pdf_as_text(split_pdfs[0])
     extracted_recipes = process_pdf_parts_with_gpt([first_text_path.read_text()])
 
-    # Zapisz przepisy wraz z wariacjami składników do bazy
-    saved_meals = save_meals_to_db(db, extracted_recipes)
-
     return {
         "message": "PDF processed successfully",
         "original_pdf": str(saved_pdf_path),
-        "processed_meals": [meal.id for meal in saved_meals]  # Zwracamy ID zapisanych przepisów
+        "preview_meals": extracted_recipes
     }
