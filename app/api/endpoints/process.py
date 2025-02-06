@@ -6,7 +6,7 @@ from app.services.openai_service import process_pdf_parts_with_gpt
 
 router = APIRouter()
 
-@router.post("/process")
+@router.post("/pdf")
 async def process_pdf(file: UploadFile):
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")

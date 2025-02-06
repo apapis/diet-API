@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from typing import AsyncGenerator
 from contextlib import asynccontextmanager
-from app.api.endpoints import recipes, meals  # Dołączamy moduł meals
+from app.api.endpoints import process, meals  # Dołączamy moduł meals
 from app.db.init_db import init_db
 from app.db.session import check_db_connection
 
@@ -30,8 +30,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Dodajemy endpointy z recipes
-app.include_router(recipes.router, prefix="/recipes", tags=["recipes"])
+# Dodajemy endpointy z process
+app.include_router(process.router, prefix="/process", tags=["process"])
 # Dodajemy endpointy z meals
 app.include_router(meals.router, prefix="/meals", tags=["meals"])
 
